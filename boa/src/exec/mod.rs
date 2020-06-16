@@ -25,7 +25,7 @@ use crate::{
         function::{Function as FunctionObject, FunctionBody, ThisMode},
         object::{Object, ObjectData, INSTANCE_PROTOTYPE, PROTOTYPE},
         property::Property,
-        value::{ResultValue, Type, Value, ValueData},
+        value::{ResultValue, Type, Value},
         BigInt, Number,
     },
     realm::Realm,
@@ -36,7 +36,7 @@ use crate::{
     BoaProfiler,
 };
 use std::convert::TryFrom;
-use std::{borrow::Borrow, ops::Deref};
+use std::ops::Deref;
 
 pub trait Executable {
     /// Runs this executable in the given executor.
@@ -158,8 +158,8 @@ impl Interpreter {
         this: &mut Value,
         arguments_list: &[Value],
     ) -> ResultValue {
-        match *f.data() {
-            ValueData::Object(ref obj) => {
+        match *f {
+            Value::Object(ref obj) => {
                 let obj = (**obj).borrow();
                 if let ObjectData::Function(ref func) = obj.data {
                     return func.call(f.clone(), this, arguments_list, self);
@@ -173,19 +173,17 @@ impl Interpreter {
     /// Converts a value into a rust heap allocated string.
     #[allow(clippy::wrong_self_convention)]
     pub fn to_string(&mut self, value: &Value) -> Result<String, Value> {
-        match value.data() {
-            ValueData::Null => Ok("null".to_owned()),
-            ValueData::Undefined => Ok("undefined".to_owned()),
-            ValueData::Boolean(boolean) => Ok(boolean.to_string()),
-            ValueData::Rational(rational) => Ok(Number::to_native_string(*rational)),
-            ValueData::Integer(integer) => Ok(integer.to_string()),
-            ValueData::String(string) => Ok(string.clone()),
-            ValueData::Symbol(_) => {
-                Err(self.construct_type_error("can't convert symbol to string"))
-            }
-            ValueData::BigInt(ref bigint) => Ok(bigint.to_string()),
-            ValueData::Object(_) => {
-                let primitive = self.to_primitive(&mut value.clone(), PreferredType::String);
+        match value {
+            Value::Null => Ok("null".to_owned()),
+            Value::Undefined => Ok("undefined".to_owned()),
+            Value::Boolean(boolean) => Ok(boolean.to_string()),
+            Value::Rational(rational) => Ok(Number::to_native_string(*rational)),
+            Value::Integer(integer) => Ok(integer.to_string()),
+            Value::String(string) => Ok(string.clone()),
+            Value::Symbol(_) => Err(self.construct_type_error("can't convert symbol to string")),
+            Value::BigInt(ref bigint) => Ok(bigint.to_string()),
+            Value::Object(_) => {
+                let primitive = self.to_primitive(value, PreferredType::String);
                 self.to_string(&primitive)
             }
         }
@@ -194,16 +192,16 @@ impl Interpreter {
     /// Helper function.
     #[allow(clippy::wrong_self_convention)]
     pub fn to_bigint(&mut self, value: &Value) -> Result<BigInt, Value> {
-        match value.data() {
-            ValueData::Null => Err(self.construct_type_error("cannot convert null to a BigInt")),
-            ValueData::Undefined => {
+        match value {
+            Value::Null => Err(self.construct_type_error("cannot convert null to a BigInt")),
+            Value::Undefined => {
                 Err(self.construct_type_error("cannot convert undefined to a BigInt"))
             }
-            ValueData::String(ref string) => Ok(BigInt::from_string(string, self)?),
-            ValueData::Boolean(true) => Ok(BigInt::from(1)),
-            ValueData::Boolean(false) => Ok(BigInt::from(0)),
-            ValueData::Integer(num) => Ok(BigInt::from(*num)),
-            ValueData::Rational(num) => {
+            Value::String(ref string) => Ok(BigInt::from_string(string, self)?),
+            Value::Boolean(true) => Ok(BigInt::from(1)),
+            Value::Boolean(false) => Ok(BigInt::from(0)),
+            Value::Integer(num) => Ok(BigInt::from(*num)),
+            Value::Rational(num) => {
                 if let Ok(bigint) = BigInt::try_from(*num) {
                     return Ok(bigint);
                 }
@@ -212,14 +210,12 @@ impl Interpreter {
                     num
                 )))
             }
-            ValueData::BigInt(b) => Ok(b.clone()),
-            ValueData::Object(_) => {
-                let primitive = self.to_primitive(&mut value.clone(), PreferredType::Number);
+            Value::BigInt(b) => Ok(b.clone()),
+            Value::Object(_) => {
+                let primitive = self.to_primitive(value, PreferredType::Number);
                 self.to_bigint(&primitive)
             }
-            ValueData::Symbol(_) => {
-                Err(self.construct_type_error("cannot convert Symbol to a BigInt"))
-            }
+            Value::Symbol(_) => Err(self.construct_type_error("cannot convert Symbol to a BigInt")),
         }
     }
 
@@ -264,18 +260,18 @@ impl Interpreter {
     /// See: https://tc39.es/ecma262/#sec-tonumber
     #[allow(clippy::wrong_self_convention)]
     pub fn to_number(&mut self, value: &Value) -> Result<f64, Value> {
-        match *value.data() {
-            ValueData::Null => Ok(0.0),
-            ValueData::Undefined => Ok(f64::NAN),
-            ValueData::Boolean(b) => Ok(if b { 1.0 } else { 0.0 }),
+        match *value {
+            Value::Null => Ok(0.0),
+            Value::Undefined => Ok(f64::NAN),
+            Value::Boolean(b) => Ok(if b { 1.0 } else { 0.0 }),
             // TODO: this is probably not 100% correct, see https://tc39.es/ecma262/#sec-tonumber-applied-to-the-string-type
-            ValueData::String(ref string) => Ok(string.parse().unwrap_or(f64::NAN)),
-            ValueData::Rational(number) => Ok(number),
-            ValueData::Integer(integer) => Ok(f64::from(integer)),
-            ValueData::Symbol(_) => Err(self.construct_type_error("argument must not be a symbol")),
-            ValueData::BigInt(_) => Err(self.construct_type_error("argument must not be a bigint")),
-            ValueData::Object(_) => {
-                let prim_value = self.to_primitive(&mut (value.clone()), PreferredType::Number);
+            Value::String(ref string) => Ok(string.parse().unwrap_or(f64::NAN)),
+            Value::Rational(number) => Ok(number),
+            Value::Integer(integer) => Ok(f64::from(integer)),
+            Value::Symbol(_) => Err(self.construct_type_error("argument must not be a symbol")),
+            Value::BigInt(_) => Err(self.construct_type_error("argument must not be a bigint")),
+            Value::Object(_) => {
+                let prim_value = self.to_primitive(value, PreferredType::Number);
                 self.to_number(&prim_value)
             }
         }
@@ -286,7 +282,7 @@ impl Interpreter {
     /// See: https://tc39.es/ecma262/#sec-tonumeric
     #[allow(clippy::wrong_self_convention)]
     pub fn to_numeric(&mut self, value: &Value) -> ResultValue {
-        let primitive = self.to_primitive(&mut value.clone(), PreferredType::Number);
+        let primitive = self.to_primitive(value, PreferredType::Number);
         if primitive.is_bigint() {
             return Ok(primitive);
         }
@@ -300,7 +296,7 @@ impl Interpreter {
     /// See: https://tc39.es/ecma262/#sec-tonumeric
     #[allow(clippy::wrong_self_convention)]
     pub(crate) fn to_numeric_number(&mut self, value: &Value) -> Result<f64, Value> {
-        let primitive = self.to_primitive(&mut value.clone(), PreferredType::Number);
+        let primitive = self.to_primitive(value, PreferredType::Number);
         if let Some(ref bigint) = primitive.as_bigint() {
             return Ok(bigint.to_f64());
         }
@@ -311,7 +307,7 @@ impl Interpreter {
     ///
     /// This is useful for the spread operator, for any other object an `Err` is returned
     pub(crate) fn extract_array_properties(&mut self, value: &Value) -> Result<Vec<Value>, ()> {
-        if let ValueData::Object(ref x) = *value.deref().borrow() {
+        if let Value::Object(ref x) = value {
             // Check if object is array
             if let ObjectData::Array = x.deref().borrow().data {
                 let length: i32 = self.value_to_rust_number(&value.get_field("length")) as i32;
@@ -328,7 +324,7 @@ impl Interpreter {
     }
 
     /// <https://tc39.es/ecma262/#sec-ordinarytoprimitive>
-    pub(crate) fn ordinary_to_primitive(&mut self, o: &mut Value, hint: PreferredType) -> Value {
+    pub(crate) fn ordinary_to_primitive(&mut self, o: &Value, hint: PreferredType) -> Value {
         debug_assert!(o.get_type() == Type::Object);
         debug_assert!(hint == PreferredType::String || hint == PreferredType::Number);
         let method_names: Vec<&str> = if hint == PreferredType::String {
@@ -339,7 +335,8 @@ impl Interpreter {
         for name in method_names.iter() {
             let method: Value = o.get_field(*name);
             if method.is_function() {
-                let result = self.call(&method, o, &[]);
+                // FIXME: Native function does not need to have `&mut this` it can just be `&this`.
+                let result = self.call(&method, &mut o.clone(), &[]);
                 match result {
                     Ok(val) => {
                         if val.is_object() {
@@ -360,14 +357,10 @@ impl Interpreter {
     /// The abstract operation ToPrimitive takes an input argument and an optional argument PreferredType.
     /// <https://tc39.es/ecma262/#sec-toprimitive>
     #[allow(clippy::wrong_self_convention)]
-    pub(crate) fn to_primitive(
-        &mut self,
-        input: &mut Value,
-        preferred_type: PreferredType,
-    ) -> Value {
+    pub(crate) fn to_primitive(&mut self, input: &Value, preferred_type: PreferredType) -> Value {
         let mut hint: PreferredType;
-        match (*input).deref() {
-            ValueData::Object(_) => {
+        match input {
+            Value::Object(_) => {
                 hint = preferred_type;
 
                 // Skip d, e we don't support Symbols yet
@@ -412,9 +405,9 @@ impl Interpreter {
     /// https://tc39.es/ecma262/#sec-toobject
     #[allow(clippy::wrong_self_convention)]
     pub(crate) fn to_object(&mut self, value: &Value) -> ResultValue {
-        match value.data() {
-            ValueData::Undefined | ValueData::Null => Err(Value::undefined()),
-            ValueData::Boolean(boolean) => {
+        match value {
+            Value::Undefined | Value::Null => Err(Value::undefined()),
+            Value::Boolean(boolean) => {
                 let proto = self
                     .realm
                     .environment
@@ -426,7 +419,7 @@ impl Interpreter {
                     ObjectData::Boolean(*boolean),
                 ))
             }
-            ValueData::Integer(integer) => {
+            Value::Integer(integer) => {
                 let proto = self
                     .realm
                     .environment
@@ -437,7 +430,7 @@ impl Interpreter {
                     ObjectData::Number(f64::from(*integer)),
                 ))
             }
-            ValueData::Rational(rational) => {
+            Value::Rational(rational) => {
                 let proto = self
                     .realm
                     .environment
@@ -449,7 +442,7 @@ impl Interpreter {
                     ObjectData::Number(*rational),
                 ))
             }
-            ValueData::String(ref string) => {
+            Value::String(ref string) => {
                 let proto = self
                     .realm
                     .environment
@@ -461,7 +454,7 @@ impl Interpreter {
                     ObjectData::String(string.clone()),
                 ))
             }
-            ValueData::Symbol(ref symbol) => {
+            Value::Symbol(ref symbol) => {
                 let proto = self
                     .realm
                     .environment
@@ -473,7 +466,7 @@ impl Interpreter {
                     ObjectData::Symbol(symbol.clone()),
                 ))
             }
-            ValueData::BigInt(ref bigint) => {
+            Value::BigInt(ref bigint) => {
                 let proto = self
                     .realm
                     .environment
@@ -483,32 +476,32 @@ impl Interpreter {
                     Value::new_object_from_prototype(proto, ObjectData::BigInt(bigint.clone()));
                 Ok(bigint_obj)
             }
-            ValueData::Object(_) => Ok(value.clone()),
+            Value::Object(_) => Ok(value.clone()),
         }
     }
 
     pub(crate) fn value_to_rust_number(&mut self, value: &Value) -> f64 {
-        match *value.deref().borrow() {
-            ValueData::Null => f64::from(0),
-            ValueData::Boolean(boolean) => {
+        match *value {
+            Value::Null => f64::from(0),
+            Value::Boolean(boolean) => {
                 if boolean {
                     f64::from(1)
                 } else {
                     f64::from(0)
                 }
             }
-            ValueData::Rational(num) => num,
-            ValueData::Integer(num) => f64::from(num),
-            ValueData::String(ref string) => string.parse::<f64>().unwrap(),
-            ValueData::BigInt(ref bigint) => bigint.to_f64(),
-            ValueData::Object(_) => {
-                let prim_value = self.to_primitive(&mut (value.clone()), PreferredType::Number);
+            Value::Rational(num) => num,
+            Value::Integer(num) => f64::from(num),
+            Value::String(ref string) => string.parse::<f64>().unwrap(),
+            Value::BigInt(ref bigint) => bigint.to_f64(),
+            Value::Object(_) => {
+                let prim_value = self.to_primitive(value, PreferredType::Number);
                 self.to_string(&prim_value)
                     .expect("cannot convert value to string")
                     .parse::<f64>()
                     .expect("cannot parse value to f64")
             }
-            ValueData::Undefined => f64::NAN,
+            Value::Undefined => f64::NAN,
             _ => {
                 // TODO: Make undefined?
                 f64::from(0)

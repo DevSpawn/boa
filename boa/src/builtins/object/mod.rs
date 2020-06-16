@@ -17,7 +17,7 @@ use crate::{
     builtins::{
         function::Function,
         property::Property,
-        value::{ResultValue, Value, ValueData},
+        value::{ResultValue, Value},
         BigInt, Symbol,
     },
     exec::Interpreter,
@@ -200,13 +200,13 @@ impl Object {
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-toobject
     pub fn from(value: &Value) -> Result<Self, ()> {
-        match *value.data() {
-            ValueData::Boolean(a) => Ok(Self::boolean(a)),
-            ValueData::Rational(a) => Ok(Self::number(a)),
-            ValueData::Integer(a) => Ok(Self::number(f64::from(a))),
-            ValueData::String(ref a) => Ok(Self::string(a.clone())),
-            ValueData::BigInt(ref bigint) => Ok(Self::bigint(bigint.clone())),
-            ValueData::Object(ref obj) => Ok((*obj).deref().borrow().clone()),
+        match *value {
+            Value::Boolean(a) => Ok(Self::boolean(a)),
+            Value::Rational(a) => Ok(Self::number(a)),
+            Value::Integer(a) => Ok(Self::number(f64::from(a))),
+            Value::String(ref a) => Ok(Self::string(a.clone())),
+            Value::BigInt(ref bigint) => Ok(Self::bigint(bigint.clone())),
+            Value::Object(ref obj) => Ok((*obj).deref().borrow().clone()),
             _ => Err(()),
         }
     }

@@ -17,7 +17,7 @@ use crate::{
     builtins::{
         object::{ObjectData, INSTANCE_PROTOTYPE, PROTOTYPE},
         property::Property,
-        value::{same_value_zero, ResultValue, Value, ValueData},
+        value::{same_value_zero, ResultValue, Value},
     },
     exec::Interpreter,
     BoaProfiler,
@@ -353,7 +353,7 @@ impl Array {
         // 4.
         let join = ctx.call(&method, this, &arguments)?;
 
-        let string = if let ValueData::String(ref s) = join.data() {
+        let string = if let Value::String(ref s) = join {
             Value::from(s.as_str())
         } else {
             Value::from("")

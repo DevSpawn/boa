@@ -9,8 +9,6 @@
 //! [spec]: https://tc39.es/ecma262/#sec-regexp-constructor
 //! [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
 
-use std::ops::Deref;
-
 use regex::Regex;
 
 use super::function::{make_builtin_fn, make_constructor_fn};
@@ -18,7 +16,7 @@ use crate::{
     builtins::{
         object::{InternalState, ObjectData},
         property::Property,
-        value::{ResultValue, Value, ValueData},
+        value::{ResultValue, Value},
     },
     exec::Interpreter,
     BoaProfiler,
@@ -79,12 +77,12 @@ impl RegExp {
         let mut regex_body = String::new();
         let mut regex_flags = String::new();
         #[allow(clippy::indexing_slicing)] // length has been checked
-        match args[0].deref() {
-            ValueData::String(ref body) => {
+        match args[0] {
+            Value::String(ref body) => {
                 // first argument is a string -> use it as regex pattern
                 regex_body = body.into();
             }
-            ValueData::Object(ref obj) => {
+            Value::Object(ref obj) => {
                 let obj = obj.borrow();
                 let slots = obj.internal_slots();
                 if slots.get("RegExpMatcher").is_some() {
@@ -103,7 +101,7 @@ impl RegExp {
         match args.get(1) {
             None => {}
             Some(flags) => {
-                if let ValueData::String(flags) = flags.deref() {
+                if let Value::String(flags) = flags {
                     regex_flags = flags.into();
                 }
             }

@@ -159,17 +159,6 @@ impl Display for TryFromObjectError {
     }
 }
 
-impl TryFrom<&Value> for Object {
-    type Error = TryFromObjectError;
-
-    fn try_from(value: &Value) -> Result<Self, Self::Error> {
-        match value.data() {
-            ValueData::Object(ref object) => Ok(object.clone().into_inner()),
-            _ => Err(TryFromObjectError),
-        }
-    }
-}
-
 impl From<()> for Value {
     fn from(_: ()) -> Self {
         Value::null()

@@ -8,7 +8,7 @@ use crate::{
     builtins::{
         self,
         function::{Function, NativeFunctionData},
-        value::{Value, ValueData},
+        value::Value,
     },
     environment::{
         declarative_environment_record::DeclarativeEnvironmentRecord,
@@ -65,7 +65,7 @@ impl Realm {
     pub fn register_global_func(self, func_name: &str, func: NativeFunctionData) -> Self {
         let func = Function::builtin(Vec::new(), func);
         self.global_obj
-            .set_field(Value::from(func_name), ValueData::from_func(func));
+            .set_field(Value::from(func_name), Value::from_func(func));
 
         self
     }

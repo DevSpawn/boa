@@ -17,7 +17,7 @@ use crate::{
     builtins::{
         object::{Object, ObjectData},
         property::Property,
-        value::{ResultValue, Value, ValueData},
+        value::{ResultValue, Value},
         RegExp,
     },
     exec::Interpreter,
@@ -28,7 +28,6 @@ use std::string::String as StdString;
 use std::{
     cmp::{max, min},
     f64::NAN,
-    ops::Deref,
 };
 
 /// JavaScript `String` implementation.
@@ -43,9 +42,9 @@ impl String {
     pub(crate) const LENGTH: usize = 1;
 
     fn this_string_value(this: &Value, ctx: &mut Interpreter) -> Result<StdString, Value> {
-        match this.data() {
-            ValueData::String(ref string) => return Ok(string.clone()),
-            ValueData::Object(ref object) => {
+        match this {
+            Value::String(ref string) => return Ok(string.clone()),
+            Value::Object(ref object) => {
                 let object = object.borrow();
                 if let Some(string) = object.as_string() {
                     return Ok(string.to_owned());
@@ -411,9 +410,9 @@ impl String {
 
     /// Return either the string itself or the string of the regex equivalent
     fn get_regex_string(value: &Value) -> StdString {
-        match value.deref() {
-            ValueData::String(ref body) => body.into(),
-            ValueData::Object(ref obj) => {
+        match value {
+            Value::String(ref body) => body.into(),
+            Value::Object(ref obj) => {
                 let obj = obj.borrow();
 
                 if obj.internal_slots().get("RegExpMatcher").is_some() {
@@ -460,8 +459,8 @@ impl String {
         let replace_value = if args.len() > 1 {
             // replace_object could be a string or function or not exist at all
             let replace_object: &Value = args.get(1).expect("second argument expected");
-            match replace_object.deref() {
-                ValueData::String(val) => {
+            match replace_object {
+                Value::String(val) => {
                     // https://tc39.es/ecma262/#table-45
                     let mut result = val.to_string();
                     let re = Regex::new(r"\$(\d)").unwrap();
@@ -500,7 +499,7 @@ impl String {
 
                     result
                 }
-                ValueData::Object(_) => {
+                Value::Object(_) => {
                     // This will return the matched substring first, then captured parenthesized groups later
                     let mut results: Vec<Value> = caps
                         .iter()

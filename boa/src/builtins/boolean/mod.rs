@@ -16,7 +16,7 @@ use super::function::{make_builtin_fn, make_constructor_fn};
 use crate::{
     builtins::{
         object::ObjectData,
-        value::{ResultValue, Value, ValueData},
+        value::{ResultValue, Value},
     },
     exec::Interpreter,
     BoaProfiler,
@@ -40,9 +40,9 @@ impl Boolean {
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-thisbooleanvalue
     fn this_boolean_value(value: &Value, ctx: &mut Interpreter) -> Result<bool, Value> {
-        match value.data() {
-            ValueData::Boolean(boolean) => return Ok(*boolean),
-            ValueData::Object(ref object) => {
+        match value {
+            Value::Boolean(boolean) => return Ok(*boolean),
+            Value::Object(ref object) => {
                 let object = object.borrow();
                 if let Some(boolean) = object.as_boolean() {
                     return Ok(boolean);

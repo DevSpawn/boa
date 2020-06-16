@@ -8,10 +8,9 @@
 use crate::builtins::{
     object::{Object, INSTANCE_PROTOTYPE, PROTOTYPE},
     property::Property,
-    value::{same_value, Value, ValueData},
+    value::{same_value, Value},
 };
 use crate::BoaProfiler;
-use std::borrow::Borrow;
 use std::ops::Deref;
 
 impl Object {
@@ -29,8 +28,8 @@ impl Object {
             if !parent.is_null() {
                 // the parent value variant should be an object
                 // In the unlikely event it isn't return false
-                return match *parent {
-                    ValueData::Object(ref obj) => (*obj).deref().borrow().has_property(val),
+                return match parent {
+                    Value::Object(ref obj) => (*obj).deref().borrow().has_property(val),
                     _ => false,
                 };
             }
@@ -48,9 +47,8 @@ impl Object {
     /// [spec]: https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-isextensible
     #[inline]
     pub fn is_extensible(&self) -> bool {
-        let val = self.get_internal_slot("extensible");
-        match *val.deref().borrow() {
-            ValueData::Boolean(b) => b,
+        match self.get_internal_slot("extensible") {
+            Value::Boolean(b) => b,
             _ => false,
         }
     }
@@ -293,8 +291,8 @@ impl Object {
 
         debug_assert!(Property::is_property_key(prop));
         // Prop could either be a String or Symbol
-        match *(*prop) {
-            ValueData::String(ref st) => {
+        match *prop {
+            Value::String(ref st) => {
                 self.properties()
                     .get(st)
                     .map_or_else(Property::default, |v| {
@@ -312,23 +310,24 @@ impl Object {
                         d
                     })
             }
-            ValueData::Symbol(ref symbol) => self
-                .symbol_properties()
-                .get(&symbol.hash())
-                .map_or_else(Property::default, |v| {
-                    let mut d = Property::default();
-                    if v.is_data_descriptor() {
-                        d.value = v.value.clone();
-                        d.writable = v.writable;
-                    } else {
-                        debug_assert!(v.is_accessor_descriptor());
-                        d.get = v.get.clone();
-                        d.set = v.set.clone();
-                    }
-                    d.enumerable = v.enumerable;
-                    d.configurable = v.configurable;
-                    d
-                }),
+            Value::Symbol(ref symbol) => {
+                self.symbol_properties()
+                    .get(&symbol.hash())
+                    .map_or_else(Property::default, |v| {
+                        let mut d = Property::default();
+                        if v.is_data_descriptor() {
+                            d.value = v.value.clone();
+                            d.writable = v.writable;
+                        } else {
+                            debug_assert!(v.is_accessor_descriptor());
+                            d.get = v.get.clone();
+                            d.set = v.set.clone();
+                        }
+                        d.enumerable = v.enumerable;
+                        d.configurable = v.configurable;
+                        d
+                    })
+            }
             _ => Property::default(),
         }
     }

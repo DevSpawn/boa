@@ -4,7 +4,7 @@ use super::{Executable, Interpreter, InterpreterState};
 use crate::{
     builtins::{
         object::{ObjectData, INSTANCE_PROTOTYPE, PROTOTYPE},
-        value::{ResultValue, Type, Value, ValueData},
+        value::{ResultValue, Type, Value},
     },
     syntax::ast::node::{Call, New, Node},
     BoaProfiler,
@@ -70,8 +70,8 @@ impl Executable for New {
         // Create a blank object, then set its __proto__ property to the [Constructor].prototype
         this.set_internal_slot(INSTANCE_PROTOTYPE, func_object.get_field(PROTOTYPE));
 
-        match func_object.data() {
-            ValueData::Object(ref obj) => {
+        match func_object {
+            Value::Object(ref obj) => {
                 let obj = (**obj).borrow();
                 if let ObjectData::Function(ref func) = obj.data {
                     return func.construct(func_object.clone(), &mut this, &v_args, interpreter);

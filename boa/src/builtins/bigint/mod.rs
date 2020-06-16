@@ -16,7 +16,7 @@ use crate::{
     builtins::{
         function::{make_builtin_fn, make_constructor_fn},
         object::ObjectData,
-        value::{ResultValue, Value, ValueData},
+        value::{ResultValue, Value},
     },
     exec::Interpreter,
     BoaProfiler,
@@ -62,14 +62,14 @@ impl BigInt {
     /// [spec]: https://tc39.es/ecma262/#sec-thisbigintvalue
     #[inline]
     fn this_bigint_value(value: &Value, ctx: &mut Interpreter) -> Result<Self, Value> {
-        match value.data() {
+        match value {
             // 1. If Type(value) is BigInt, return value.
-            ValueData::BigInt(ref bigint) => return Ok(bigint.clone()),
+            Value::BigInt(ref bigint) => return Ok(bigint.clone()),
 
             // 2. If Type(value) is Object and value has a [[BigIntData]] internal slot, then
             //    a. Assert: Type(value.[[BigIntData]]) is BigInt.
             //    b. Return value.[[BigIntData]].
-            ValueData::Object(ref object) => {
+            Value::Object(ref object) => {
                 if let ObjectData::BigInt(ref bigint) = object.borrow().data {
                     return Ok(bigint.clone());
                 }

@@ -20,7 +20,7 @@ mod tests;
 
 use super::function::{make_builtin_fn, make_constructor_fn};
 use crate::{
-    builtins::value::{ResultValue, Value, ValueData},
+    builtins::value::{ResultValue, Value},
     exec::Interpreter,
     BoaProfiler,
 };
@@ -47,9 +47,9 @@ impl Symbol {
     }
 
     fn this_symbol_value(value: &Value, ctx: &mut Interpreter) -> Result<Self, Value> {
-        match value.data() {
-            ValueData::Symbol(ref symbol) => return Ok(symbol.clone()),
-            ValueData::Object(ref object) => {
+        match value {
+            Value::Symbol(ref symbol) => return Ok(symbol.clone()),
+            Value::Object(ref object) => {
                 let object = object.borrow();
                 if let Some(symbol) = object.as_symbol() {
                     return Ok(symbol.clone());

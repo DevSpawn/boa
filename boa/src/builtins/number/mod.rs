@@ -21,7 +21,7 @@ use super::{
     object::ObjectData,
 };
 use crate::{
-    builtins::value::{ResultValue, Value, ValueData},
+    builtins::value::{ResultValue, Value},
     exec::Interpreter,
     BoaProfiler,
 };
@@ -57,10 +57,10 @@ impl Number {
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-thisnumbervalue
     fn this_number_value(value: &Value, ctx: &mut Interpreter) -> Result<f64, Value> {
-        match *value.data() {
-            ValueData::Integer(integer) => return Ok(f64::from(integer)),
-            ValueData::Rational(rational) => return Ok(rational),
-            ValueData::Object(ref object) => {
+        match *value {
+            Value::Integer(integer) => return Ok(f64::from(integer)),
+            Value::Rational(rational) => return Ok(rational),
+            Value::Object(ref object) => {
                 if let Some(number) = object.borrow().as_number() {
                     return Ok(number);
                 }
@@ -431,7 +431,7 @@ impl Number {
     ) -> ResultValue {
         if let (Some(val), r) = (args.get(0), args.get(1)) {
             let mut radix = if let Some(rx) = r {
-                if let ValueData::Integer(i) = rx.data() {
+                if let Value::Integer(i) = rx {
                     *i as u32
                 } else {
                     // Handling a second argument that isn't an integer but was provided so cannot be defaulted.
@@ -442,8 +442,8 @@ impl Number {
                 0
             };
 
-            match val.data() {
-                ValueData::String(s) => {
+            match val {
+                Value::String(s) => {
                     // Attempt to infer radix from given string.
 
                     if radix == 0 {
@@ -466,8 +466,8 @@ impl Number {
                         Ok(Value::from(f64::NAN))
                     }
                 }
-                ValueData::Integer(i) => Ok(Value::integer(*i)),
-                ValueData::Rational(f) => Ok(Value::integer(*f as i32)),
+                Value::Integer(i) => Ok(Value::integer(*i)),
+                Value::Rational(f) => Ok(Value::integer(*f as i32)),
                 _ => {
                     // Wrong argument type to parseInt.
                     Ok(Value::from(f64::NAN))
@@ -500,8 +500,8 @@ impl Number {
         _ctx: &mut Interpreter,
     ) -> ResultValue {
         if let Some(val) = args.get(0) {
-            match val.data() {
-                ValueData::String(s) => {
+            match val {
+                Value::String(s) => {
                     if let Ok(i) = s.parse::<i32>() {
                         // Attempt to parse an integer first so that it can be stored as an integer
                         // to improve performance
@@ -513,8 +513,8 @@ impl Number {
                         Ok(Value::from(f64::NAN))
                     }
                 }
-                ValueData::Integer(i) => Ok(Value::integer(*i)),
-                ValueData::Rational(f) => Ok(Value::rational(*f)),
+                Value::Integer(i) => Ok(Value::integer(*i)),
+                Value::Rational(f) => Ok(Value::rational(*f)),
                 _ => {
                     // Wrong argument type to parseFloat.
                     Ok(Value::from(f64::NAN))
